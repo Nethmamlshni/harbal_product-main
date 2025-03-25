@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import Order from '../Models/Order.js';
+import Order from '../Models/Oder.js';
 import User from '../Models/User.js';
 
 // Create a nodemailer transporter for SMTP
@@ -12,7 +12,7 @@ const transporter = nodemailer.createTransport({
 });
 
 // Send order confirmation email
-exports.sendOrderConfirmation = async (orderId) => {
+export const sendOrderConfirmation = async (orderId) => {
   try {
     const order = await Order.findById(orderId).populate('userId');
     const user = await User.findById(order.userId);
@@ -31,7 +31,7 @@ exports.sendOrderConfirmation = async (orderId) => {
 };
 
 // Send shipping notification email
-exports.sendShippingNotification = async (orderId) => {
+export const sendShippingNotification = async (orderId) => {
   try {
     const order = await Order.findById(orderId).populate('userId');
     const user = await User.findById(order.userId);
@@ -50,7 +50,7 @@ exports.sendShippingNotification = async (orderId) => {
 };
 
 // Send delivery confirmation email
-exports.sendDeliveryConfirmation = async (orderId) => {
+export const sendDeliveryConfirmation = async (orderId) => {
   try {
     const order = await Order.findById(orderId).populate('userId');
     const user = await User.findById(order.userId);

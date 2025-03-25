@@ -1,9 +1,9 @@
 import Product from '../Models/Product.js';
-import Order from '../Models/Order.js';
+import Order from '../Models/Oder.js';
 import BlogPost from '../Models/Blog.js';
 
 // Get system analytics
-exports.getAnalytics = async (req, res) => {
+export const getAnalytics = async (req, res) => {
   try {
     const totalProducts = await Product.countDocuments();
     const totalOrders = await Order.countDocuments();
@@ -22,7 +22,7 @@ exports.getAnalytics = async (req, res) => {
 };
 
 // Manage products (View all products)
-exports.viewAllProducts = async (req, res) => {
+export const viewAllProducts = async (req, res) => {
   try {
     const products = await Product.find();
     res.status(200).json(products);
@@ -32,7 +32,7 @@ exports.viewAllProducts = async (req, res) => {
 };
 
 // View all orders
-exports.viewAllOrders = async (req, res) => {
+export const viewAllOrders = async (req, res) => {
   try {
     const orders = await Order.find().populate('userId');
     res.status(200).json(orders);
@@ -42,7 +42,7 @@ exports.viewAllOrders = async (req, res) => {
 };
 
 // Update order status (used by admin)
-exports.updateOrderStatus = async (req, res) => {
+export const updateOrderStatus = async (req, res) => {
   try {
     const { orderId, status } = req.body;
     const order = await Order.findByIdAndUpdate(orderId, { status }, { new: true });

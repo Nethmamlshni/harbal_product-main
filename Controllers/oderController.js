@@ -1,9 +1,9 @@
-import Order from '../Models/Order.js';
+import Order from '../Models/Oder.js';
 import Cart from '../Models/Card.js';
 import Product from '../Models/Product.js';
 
 // Create an order from the cart
-exports.createOrder = async (req, res) => {
+export const createOrder = async (req, res) => {
   try {
     const cart = await Cart.findOne({ userId: req.user.id });
     if (!cart || cart.items.length === 0) return res.status(400).json({ message: 'Cart is empty' });
@@ -28,7 +28,7 @@ exports.createOrder = async (req, res) => {
 };
 
 // Update order status
-exports.updateOrderStatus = async (req, res) => {
+export const updateOrderStatus = async (req, res) => {
   try {
     const order = await Order.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true });
     if (!order) return res.status(404).json({ message: 'Order not found' });
@@ -39,7 +39,7 @@ exports.updateOrderStatus = async (req, res) => {
 };
 
 // Payment verification
-exports.verifyPayment = async (req, res) => {
+export const verifyPayment = async (req, res) => {
   // Implement payment gateway verification here
   res.status(200).json({ message: 'Payment verified successfully' });
 };

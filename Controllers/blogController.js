@@ -1,8 +1,7 @@
-import BlogPost from '../Models/BlogPost';
-import Comment from '../Models/Comment';
+import BlogPost from '../Models/Blog.js';
 
 // Create a new blog post
-exports.createPost = async (req, res) => {
+export const createPost = async (req, res) => {
   try {
     const { title, content, featuredImage, author, tags } = req.body;
     const newPost = new BlogPost({ title, content, featuredImage, author, tags, datePublished: new Date() });
@@ -14,7 +13,7 @@ exports.createPost = async (req, res) => {
 };
 
 // Get all blog posts
-exports.getAllPosts = async (req, res) => {
+export const getAllPosts = async (req, res) => {
   try {
     const posts = await BlogPost.find().sort({ datePublished: -1 });
     res.status(200).json(posts);
@@ -24,7 +23,7 @@ exports.getAllPosts = async (req, res) => {
 };
 
 // Get a single blog post by ID
-exports.getPostById = async (req, res) => {
+export const getPostById = async (req, res) => {
   try {
     const post = await BlogPost.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });
@@ -35,7 +34,7 @@ exports.getPostById = async (req, res) => {
 };
 
 // Update a blog post
-exports.updatePost = async (req, res) => {
+export const updatePost = async (req, res) => {
   try {
     const { title, content, featuredImage, author, tags } = req.body;
     const post = await BlogPost.findByIdAndUpdate(req.params.id, { title, content, featuredImage, author, tags }, { new: true });
@@ -47,7 +46,7 @@ exports.updatePost = async (req, res) => {
 };
 
 // Delete a blog post
-exports.deletePost = async (req, res) => {
+export const deletePost = async (req, res) => {
   try {
     const post = await BlogPost.findByIdAndDelete(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });
@@ -58,7 +57,7 @@ exports.deletePost = async (req, res) => {
 };
 
 // Add a comment to a blog post
-exports.addComment = async (req, res) => {
+export const addComment = async (req, res) => {
   try {
     const { postId, commentText } = req.body;
     const newComment = new Comment({ postId, commentText, author: req.user.id, datePosted: new Date() });
@@ -75,7 +74,7 @@ exports.addComment = async (req, res) => {
 };
 
 // Get comments for a post
-exports.getComments = async (req, res) => {
+export const getComments = async (req, res) => {
   try {
     const post = await BlogPost.findById(req.params.id).populate('comments');
     if (!post) return res.status(404).json({ message: 'Post not found' });
