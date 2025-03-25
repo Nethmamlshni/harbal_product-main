@@ -8,6 +8,7 @@ import CartRouter from './Routes/cardRoutes.js';
 import emailRouter from './Routes/emailRoutes.js';
 import BlogRouter from './Routes/blogRoutes.js';
 import adminRouter from './Routes/adminRoutes.js';
+import AddressRouter from './Routes/addressRoutes.js';
 
 
 dotenv.config();
@@ -22,6 +23,7 @@ app.use('/api/card', CartRouter);
 app.use('/api/email', emailRouter);
 app.use('/api/blog', BlogRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/address', AddressRouter);
 
 const connectDB = process.env.MONGO_URL;
 

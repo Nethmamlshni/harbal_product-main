@@ -1,15 +1,12 @@
 import express from 'express';
-import { createOrder, updateOrderStatus, verifyPayment } from '../Controllers/oderController.js';
-
+import { createOrder, getOrder, getAllOrders, updateOrderStatus, verifyPayment } from '../Controllers/oderController.js';
+import {authMiddleware, isAdmin} from '../middlewares/userMiddleware.js';
 const router = express.Router();
 
-// Route to create an order
-router.post('/oder', createOrder);
-
-// Route to update order status
-router.put('/status/:id', updateOrderStatus);
-
-// Route to verify payment
-router.post('/verify-payment/:id', verifyPayment);
+router.post('/create', authMiddleware, createOrder);
+router.get('/:id', authMiddleware, getOrder);
+router.post('/:id/verify-payment', authMiddleware, verifyPayment);
+router.get('/', isAdmin, getAllOrders);
+router.put('/:id/status', isAdmin, updateOrderStatus);
 
 export default router;

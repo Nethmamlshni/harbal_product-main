@@ -1,16 +1,22 @@
 import express from 'express';
-import { createPost,getAllPosts, getPostById, updatePost, deletePost, addComment, getComments } from '../Controllers/blogController.js';
+import { createPost,
+    getAllPosts,
+    getPostById,
+    updatePost,
+    deletePost,
+    addComment,
+    searchPosts, } from '../Controllers/blogController.js';
+import {authMiddleware, isAdmin} from '../middlewares/userMiddleware.js';
 
 const router = express.Router();
 
-router.post('/posts', createPost);
-router.get('/posts', getAllPosts);
-router.get('/posts/:id', getPostById);
-router.put('/posts/:id', updatePost);
-router.delete('/posts/:id', deletePost);
-router.post('/comments', addComment);
-router.get('/comments/:id', getComments);
-
+router.get('/', getAllPosts);  
+router.get('/:id', getPostById); 
+router.get('/search', searchPosts);  
+router.post('/create', authMiddleware, isAdmin, createPost);  
+router.put('/update/:id', authMiddleware, isAdmin, updatePost); 
+router.delete('/delete/:id', authMiddleware, isAdmin, deletePost); 
+router.post('/comment', authMiddleware, addComment); 
 
 
 

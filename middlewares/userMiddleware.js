@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import User from '../Models/User.js'; 
 
-const authMiddleware = async (req, res, next) => {
+export const authMiddleware = async (req, res, next) => {
     const token = req.header('Authorization') && req.header('Authorization').split(' ')[1];
 
     if (!token) {
@@ -20,4 +20,10 @@ const authMiddleware = async (req, res, next) => {
     }
 };
 
-export default authMiddleware;
+export const isAdmin = (req, res, next) => {
+    if (req.user && req.user.role === 'admin') {
+      next(); 
+    } else {
+      return res.status(403).json({ message: 'Access denied. Admins only.' });
+    }
+  };

@@ -1,21 +1,57 @@
 import Order from '../Models/Oder.js';
 import Cart from '../Models/Card.js';
 import Product from '../Models/Product.js';
+import Address from '../Models/Address.js';
+
+
+// tax and shipping fees
+const calculateTaxAndShipping = (totalPrice) => {
+  const taxRate = 0.1; // 10% tax
+  const shippingCost = totalPrice > 5000 ? 0 : 500; // Free shipping over 5000
+  return {
+    tax: totalPrice * taxRate,
+    shippingCost: shippingCost,
+  };
+};
 
 // Create an order from the cart
 export const createOrder = async (req, res) => {
   try {
-    const cart = await Cart.findOne({ userId: req.user.id });
-    if (!cart || cart.items.length === 0) return res.status(400).json({ message: 'Cart is empty' });
+    const cart = await Cart.findOne({ userId: req.user.id }).populate('items.productId');
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({ message: 'Cart is empty' });
+    }
+
+    for (const item of cart.items) {
+      if (item.productId.stock < item.quantity) {
+        return res.status(400).json({ message: `Product ${item.productId.name} is out of stock` });
+      }
+    }
+
+    const shippingAddress = await Address.findById(req.body.shippingAddress);
+    const billingAddress = req.body.billingAddress ? await Address.findById(req.body.billingAddress) : null;
+    if (!shippingAddress) return res.status(400).json({ message: 'Invalid shipping address' });
+
+    const { tax, shippingCost } = calculateTaxAndShipping(cart.totalPrice);
 
     const order = new Order({
       userId: req.user.id,
       items: cart.items,
-      shippingAddress: req.body.shippingAddress,
-      totalPrice: cart.totalPrice,
+      shippingAddress: shippingAddress._id,
+      billingAddress: billingAddress ? billingAddress._id : null,
+      shippingMethod: req.body.shippingMethod || 'standard',
+      paymentMethod: req.body.paymentMethod || 'creditCard',
+      totalPrice: cart.totalPrice + tax + shippingCost,
+      tax,
+      shippingCost,
     });
 
     await order.save();
+    for (const item of cart.items) {
+      const product = await Product.findById(item.productId);
+      product.stock -= item.quantity;
+      await product.save();
+    }
 
     cart.items = [];
     cart.totalPrice = 0;
@@ -27,10 +63,14 @@ export const createOrder = async (req, res) => {
   }
 };
 
-// Update order status
-export const updateOrderStatus = async (req, res) => {
+// Get order details
+export const getOrder = async (req, res) => {
   try {
-    const order = await Order.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true });
+    const order = await Order.findOne({ _id: req.params.id, userId: req.user.id })
+      .populate('items.productId')
+      .populate('shippingAddress')
+      .populate('billingAddress');
+
     if (!order) return res.status(404).json({ message: 'Order not found' });
     res.status(200).json(order);
   } catch (error) {
@@ -38,8 +78,44 @@ export const updateOrderStatus = async (req, res) => {
   }
 };
 
-// Payment verification
+// Get all orders for admin
+export const getAllOrders = async (req, res) => {
+  try {
+    const orders = await Order.find().populate('userId', 'name email').populate('items.productId');
+    res.status(200).json(orders);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Update order status (Admin)
+export const updateOrderStatus = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    order.status = req.body.status;
+    await order.save();
+    res.status(200).json(order);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Verify payment before confirming order
 export const verifyPayment = async (req, res) => {
-  // Implement payment gateway verification here
-  res.status(200).json({ message: 'Payment verified successfully' });
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    if (req.body.paymentStatus === 'paid') {
+      order.paymentStatus = 'paid';
+      await order.save();
+      res.status(200).json({ message: 'Payment verified successfully', order });
+    } else {
+      res.status(400).json({ message: 'Payment verification failed' });
+    }
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
 };
