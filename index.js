@@ -25,6 +25,13 @@ app.use('/api/blog', BlogRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/address', AddressRouter);
 
+
+// Global Error Handling Middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack); 
+    res.status(500).send({ message: 'Something went wrong!' });
+  });
+
 const connectDB = process.env.MONGO_URL;
 
 mongoose.connect(connectDB).then(() => {
