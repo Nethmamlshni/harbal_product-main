@@ -13,5 +13,3 @@ router.put('/profile', authMiddleware, updateProfile);
 router.delete("/delete", authMiddleware, deleteProfile);
 
 export default router;
-
-//67f5efc920e7fe1e498e9c57
