@@ -1,6 +1,9 @@
 import User from '../Models/User.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+dotenv.config();
 
 
 // Register a new user
@@ -46,64 +49,85 @@ export const login = async (req, res) => {
         res.status(400).json({ message: error.message });
       }
     };
-
-    
+  
 // Forgot password
 export const forgotPassword = async (req, res) => {
-    const { email } = req.body;
-    try {
-        const existUser = await User.findOne({ email });
-        if (!existUser){
-            return res.status(400).json({
-                message: 'User not found'
-            });
-        }
-        const token = jwt.sign({id: existUser._id}, process.env.JWT_SECRET, {expiresIn: '1d'});
-        try{
-        await sendEmail(email, 'forgetPassword', token);
-        res.status(200).json({
-            message: 'Email sent'
-        });
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: 'Email is required' });
+      }
 
-        }catch(error){
-            res.status(500).json({
-                message: error.message
-            });
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(400).json({ message: 'User not found' });
+      }
+      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+      const link = `${process.env.WEB_SITE_URL}/reset-password?token=${token}`;
+      const transporter = nodemailer.createTransport({
+        service: process.env.SERVER,
+        auth: {
+          user:"nethmamalshani2002@gmail.com",
+          pass: "sqdg zebo wbno bgdc"
         }
-    }catch(error) {
-        res.status(500).json({
-            message: error.message
-        });
-    }
+      });
+      const mailOptions = {
+        from: 'nethmamalshani2002@gmail.com',
+        to: email,
+        subject: 'Password Reset',
+        text: `Click the following link to reset your password: ${link}`
+      };
+
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+          console.log(error);
+          res.status(500).json({ message: 'Error sending email' });
+        } else {
+          console.log('Email sent: ' + info.response);
+          res.status(200).json({ message: 'Email sent successfully' });
+        }
+      }); 
+      
 };
 
 // Reset password
 export const resetPassword = async (req, res) => {
-    const { token, password } = req.body;
-    let decodedToken;
+  try {
+      const { token, newPassword } = req.body;
+      
+      if (!token || !newPassword) {
+          return res.status(400).json({ message: "Token and new password are required." });
+      }
+      let decoded;
+      try {
+          decoded = jwt.verify(token, process.env.JWT_SECRET);
+      } catch (error) {
+          if (error.name === "TokenExpiredError") {
+              return res.status(401).json({ message: "Token has expired. Please request a new one." });
+          }
+          return res.status(400).json({ message: "Invalid token." });
+      }
 
-    try {
-        decodedToken = jwt.verify(token,process.env.JWT_SECRET);
-        const user = await User.findOne({ _id: decodedToken.id });
-        if (!user) {
-            return res.status(400).json({
-                message: 'User not found'
-            });
-        }else { 
-            const hashedPassword = await bcrypt.hash(password,10);
-            user.password = hashedPassword;
-            await user.save();
-            return res.status(200).json({
-                message: 'Password updated successfully'
-            });
-        }
-    }catch(error){
-        return res.status(400).json({
-            message : 'invalid token',
-            error : error
-        })
-    }
+      const user = await User.findById(decoded.userId);
+      if (!user) {
+          return res.status(404).json({ message: "User not found." });
+      }
+
+      if (newPassword.length < 6) {
+          return res.status(400).json({ message: "Password must be at least 6 characters long." });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      user.password = hashedPassword;
+      await user.save();
+
+      res.status(200).json({ message: "Password reset successful. You can now log in with your new password." });
+  } catch (error) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ message: "Internal server error" });
+  }
 };
+
 
 // View profile
 export const getProfile = async (req, res) => {
@@ -118,8 +142,8 @@ export const getProfile = async (req, res) => {
 // Edit profile details
 export const updateProfile = async (req, res) => {
   try {
-    const { name, email } = req.body;
-    const user = await User.findByIdAndUpdate(req.user.id, { name, email }, { new: true });
+    const { firstname, lastname,profile_image, email } = req.body;
+    const user = await User.findByIdAndUpdate(req.user.id, { firstname, lastname,profile_image, email }, { new: true });
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -131,7 +155,7 @@ export const updateProfile = async (req, res) => {
   }
 };
 
-// Delete Profile (Using req.user.id)
+// Delete Profile 
 export const deleteProfile = async (req, res) => {
   try {
     const deletedUser = await User.findByIdAndDelete(req.user.id);

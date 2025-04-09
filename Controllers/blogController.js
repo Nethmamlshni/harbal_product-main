@@ -25,10 +25,8 @@ export const createPost = async (req, res) => {
   try {
     const { title, content, featuredImage, imageGallery, videoUrl, tags, relatedProducts, author } = req.body;
 
-    // Featured Image Upload
     const uploadedFeaturedImage = featuredImage ? await uploadImage(featuredImage) : null;
 
-    // Image Gallery Upload (Loop through array and upload)
     const uploadedImageGallery = imageGallery 
       ? await Promise.all(imageGallery.map(async (img) => ({ imageUrl: await uploadImage(img) })))
       : [];

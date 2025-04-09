@@ -10,13 +10,13 @@ import {authMiddleware, isAdmin} from '../middlewares/userMiddleware.js';
 
 const router = express.Router();
 
-router.get('/', getAllPosts);  
-router.get('/:id', getPostById); 
-router.get('/search', searchPosts);  
-router.post('/create', authMiddleware, isAdmin, createPost);  
-router.put('/update/:id', authMiddleware, isAdmin, updatePost); 
-router.delete('/delete/:id', authMiddleware, isAdmin, deletePost); 
-router.post('/comment', authMiddleware, addComment); 
+router.get('/blog', getAllPosts);  
+router.get('/blog/:id', getPostById); 
+router.get('/blog/search', searchPosts);  
+router.post('/blog/create', authMiddleware, isAdmin, createPost);  
+router.put('/blog/update/:id', authMiddleware, isAdmin, updatePost); 
+router.delete('/blog/delete/:id', authMiddleware, isAdmin, deletePost); 
+router.post('/blog/comment', authMiddleware, addComment); 
 
 
 

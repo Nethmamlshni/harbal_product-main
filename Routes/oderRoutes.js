@@ -3,10 +3,10 @@ import { createOrder, getOrder, getAllOrders, updateOrderStatus, verifyPayment }
 import {authMiddleware, isAdmin} from '../middlewares/userMiddleware.js';
 const router = express.Router();
 
-router.post('/create', authMiddleware, createOrder);
-router.get('/:id', authMiddleware, getOrder);
-router.post('/:id/verify-payment', authMiddleware, verifyPayment);
-router.get('/', isAdmin, getAllOrders);
-router.put('/:id/status', isAdmin, updateOrderStatus);
+router.post('/oder/create', authMiddleware, createOrder);
+router.get('/oder/:id', authMiddleware, getOrder);
+router.post('/oder/:id/verify-payment', authMiddleware, verifyPayment);
+router.get('/oder/', isAdmin, getAllOrders);
+router.put('/oder/:id/status', isAdmin, updateOrderStatus);
 
 export default router;
