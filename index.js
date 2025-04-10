@@ -89,11 +89,12 @@ const connectDB = process.env.MONGO_URL;
 mongoose.connect(connectDB)
   .then(() => console.log('Connected to MongoDB'))
   .catch((err) => {
-    console.error('DB Connection Error:', err);
-    process.exit(1);
+    console.log('DB Connection Error:', err);
   });
 
 const PORT = process.env.PORT ;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+export default app;

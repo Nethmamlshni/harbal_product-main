@@ -1,6 +1,6 @@
 import express from 'express';
-import { register, login, resetPassword, forgotPassword, getProfile, updateProfile , deleteProfile } from '../Controllers/userController.js';
-import {authMiddleware} from '../middlewares/userMiddleware.js';
+import { register, login, resetPassword, forgotPassword, getProfile, updateProfile , deleteProfile , getAllUsers} from '../Controllers/userController.js';
+import {authMiddleware , isAdmin} from '../middlewares/userMiddleware.js';
 
 const router = express.Router();
 
@@ -11,5 +11,6 @@ router.post('/forgot-password',forgotPassword);
 router.get('/profile', authMiddleware, getProfile);  
 router.put('/profile', authMiddleware, updateProfile);
 router.delete("/delete", authMiddleware, deleteProfile);
+router.get('/getall', isAdmin, getAllUsers);
 
 export default router;
