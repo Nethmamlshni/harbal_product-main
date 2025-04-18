@@ -1,6 +1,60 @@
 import Product from '../Models/Product.js';
 import Order from '../Models/Oder.js';
 import BlogPost from '../Models/Blog.js';
+import Admin from '../Models/admin.js';
+import dotenv from 'dotenv';
+
+//Admin Invitation Link
+export const adminLink = async (req, res) => {
+  const { email } = req.body;
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); 
+
+  await Admin.create({ name, email,password,role,confirmed, token, expiresAt });
+
+  const link = `${process.env.WEB_SITE_URL}/register-admin?token=${token}`;
+
+  const transporter = nodemailer.createTransport({
+    service: process.env.SERVER,
+    auth: {
+      user: process.env.EMAIL,
+      pass: process.env.EMAIL_APP_PASSWORD,
+    },
+  });
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: "Admin Invitation",
+    html: `Click <a href="${link}">here</a> to register as an admin.`,
+  });
+
+  res.json({ message: "Admin invitation sent!" });
+};
+
+//Admin Register
+export const adminRegister = async (req, res) => {
+  const { name, email,password,token } = req.body;
+
+  const tokenDoc = await Admin.findOne({ token });
+
+  if (!tokenDoc || tokenDoc.expiresAt < Date.now() || tokenDoc.email !== email) {
+    return res.status(400).json({ message: "Invalid or expired token" });
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  await User.create({
+    name,
+    email,
+    password: hashedPassword,
+    role: "admin",
+  });
+
+  await AdminToken.deleteOne({ _id: tokenDoc._id });
+
+  res.status(201).json({ message: "Admin successfully registered!" });
+};
 
 // Get system analytics
 export const getAnalytics = async (req, res) => {
