@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
-dotenv.config();
+
 
 
 // Register a new user
@@ -44,7 +44,8 @@ export const login = async (req, res) => {
         }
         const token = jwt.sign({ id: user._id, role: user.role },process.env.JWT_SECRET , { expiresIn: '1h' });
     
-        res.status(200).json({ message: 'Login successful', token });
+        res.status(200).json({ message: 'Login successful', 
+          user : { _id: user._id, firstname: user.firstname, lastname: user.lastname, email: user.email, role: user.role }, token });
       } catch (error) {
         res.status(400).json({ message: error.message });
       }
@@ -52,41 +53,46 @@ export const login = async (req, res) => {
   
 // Forgot password
 export const forgotPassword = async (req, res) => {
-      const { email } = req.body;
-      if (!email) {
-        return res.status(400).json({ message: 'Email is required' });
-      }
+  const { email } = req.body;
+  
 
-      const user = await User.findOne({ email });
-      if (!user) {
-        return res.status(400).json({ message: 'User not found' });
-      }
-      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-      const link = `${process.env.WEB_SITE_URL}/reset-password?token=${token}`;
-      const transporter = nodemailer.createTransport({
-        service: process.env.SERVER,
-        auth: {
-          user:process.env.EMAIL,
-          pass: process.env.EMAIL_APP_PASSWORD
-        }
-      });
-      const mailOptions = {
-        from: process.env.EMAIL,
-        to: email,
-        subject: 'Password Reset',
-        text: `Click the following link to reset your password: ${link}`
-      };
+  if (!email) {
+    return res.status(400).json({ message: 'Email is required' });
+  }
 
-      transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-          console.log(error);
-          res.status(500).json({ message: 'Error sending email' });
-        } else {
-          console.log('Email sent: ' + info.response);
-          res.status(200).json({ message: 'Email sent successfully' });
-        }
-      }); 
-      
+  const user = await User.findOne({ email });
+  if (!user) {
+    return res.status(400).json({ message: 'User not found' });
+  }
+
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+  const link = `${process.env.WEB_SITE_URL}/reset-password?token=${token}`;
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail', 
+    auth: {
+      user: 'nethmamalshani2002@gmail.com', 
+      pass: 'sqdg zebo wbno bgdc',
+    },
+  });
+
+  const mailOptions = {
+    from: process.env.EMAIL,
+    to: email,
+    subject: 'Password Reset',
+    text: `Click the following link to reset your password: ${link}`,
+  };
+
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.error(error);
+      return res.status(500).json({ message: 'Error sending email' });
+    }
+
+    console.log('Email sent: ' + info.response);
+    res.status(200).json({ message: 'Password reset email sent successfully' });
+  });
 };
 
 // Reset password
@@ -107,7 +113,7 @@ export const resetPassword = async (req, res) => {
           return res.status(400).json({ message: "Invalid token." });
       }
 
-      const user = await User.findById(decoded.userId);
+      const user = await User.findById(decoded.id);
       if (!user) {
           return res.status(404).json({ message: "User not found." });
       }
@@ -128,32 +134,37 @@ export const resetPassword = async (req, res) => {
   }
 };
 
-
 // View profile
 export const getProfile = async (req, res) => {
-    try {
-        const user = req.user;  
-        res.status(200).json(user); 
-      } catch (error) {
-        res.status(400).json({ message: error.message });
-      }
-    };
-
-// Edit profile details
-export const updateProfile = async (req, res) => {
   try {
-    const { firstname, lastname,profile_image, email } = req.body;
-    const user = await User.findByIdAndUpdate(req.user.id, { firstname, lastname,profile_image, email }, { new: true });
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    res.status(200).json(user);
+    const user = req.user;  // already authenticated user
+    res.status(200).json({
+      message: 'Profile retrieved successfully',
+      user: user, // fix: return the correct variable
+    }); 
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
+
+// Edit profile details
+export const updateProfile = async (req, res) => {
+  try {
+    const { firstname, lastname, profile_image, email } = req.body;
+    const user = await User.findByIdAndUpdate(req.user.id, { firstname, lastname, profile_image, email }, { new: true });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({
+      message: 'Profile updated successfully', 
+      user: user, 
+    });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
 
 // Delete Profile 
 export const deleteProfile = async (req, res) => {

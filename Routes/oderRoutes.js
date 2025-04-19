@@ -6,7 +6,7 @@ const router = express.Router();
 router.post('/oder/create', authMiddleware, createOrder);
 router.get('/oder/:id', authMiddleware, getOrder);
 router.post('/oder/:id/verify-payment', authMiddleware, verifyPayment);
-router.get('/oder/', isAdmin, getAllOrders);
+router.get('/oder/all', isAdmin, getAllOrders);
 router.put('/oder/:id/status', isAdmin, updateOrderStatus);
 
 export default router;
