@@ -1,6 +1,7 @@
-import BlogPost from '../Models/Blog.js';
+import Blog from '../Models/Blog.js';
 import Comment from '../Models/comment.js';
 import cloudinary from 'cloudinary'; 
+import mongoose from 'mongoose';
 
 
 cloudinary.config({
@@ -23,7 +24,7 @@ const uploadImage = async (imagePath) => {
 // Create a new blog post
 export const createPost = async (req, res) => {
   try {
-    const { title, content, featuredImage, imageGallery, videoUrl, tags, relatedProducts, author } = req.body;
+    const { title, content , featuredImage, imageGallery, videoUrl, tags, relatedProducts } = req.body;
 
     const uploadedFeaturedImage = featuredImage ? await uploadImage(featuredImage) : null;
 
@@ -31,7 +32,7 @@ export const createPost = async (req, res) => {
       ? await Promise.all(imageGallery.map(async (img) => ({ imageUrl: await uploadImage(img) })))
       : [];
 
-    const newPost = new BlogPost({
+    const newPost = new Blog({
       title,
       content,
       featuredImage: uploadedFeaturedImage,
@@ -39,7 +40,7 @@ export const createPost = async (req, res) => {
       videoUrl,
       tags,
       relatedProducts,
-      author,
+      author: req.user.id,
     });
 
     await newPost.save();
@@ -53,9 +54,16 @@ export const createPost = async (req, res) => {
 // Get all blog posts
 export const getAllPosts = async (req, res) => {
   try {
-    const posts = await Blog.find().sort({ publishDate: -1 });  // Sorting by publish date, descending
+    const posts = await Blog.find()
+      .sort({ publishDate: -1 })
+      .populate('author', 'firstname lastname email');
+    if (!posts || posts.length === 0) {
+      console.log('No posts found in the database.');
+    }
+
     res.status(200).json(posts);
   } catch (error) {
+    console.error('Error fetching posts:', error.message); // Debugging
     res.status(400).json({ message: error.message });
   }
 };
@@ -63,11 +71,28 @@ export const getAllPosts = async (req, res) => {
 // Get a single blog post by ID
 export const getPostById = async (req, res) => {
   try {
-    const post = await Blog.findById(req.params.id).populate('author').populate('relatedProducts');
-    if (!post) return res.status(404).json({ message: 'Post not found' });
-    res.status(200).json(post);
+    const { id } = req.params;
+
+    console.log('Fetching blog post with ID:', id); // Debugging
+
+    // Validate the ID
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid blog ID' });
+    }
+
+    // Fetch the blog post
+    const blog = await Blog.findById(id).populate('author', 'firstname lastname email');
+
+    if (!blog) {
+      return res.status(404).json({ message: 'Blog post not found' });
+    }
+
+    console.log('Fetched Blog:', blog); // Debugging
+
+    res.status(200).json(blog);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error('Error fetching blog post:', error.message); // Debugging
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -100,49 +125,94 @@ export const updatePost = async (req, res) => {
 // Delete a blog post
 export const deletePost = async (req, res) => {
   try {
-    const post = await Blog.findByIdAndDelete(req.params.id);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
+    const { id } = req.params;
+
+    console.log('Deleting blog post with ID:', id); // Debugging
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      console.log('Invalid blog ID'); // Debugging
+      return res.status(400).json({ message: 'Invalid blog ID' });
+    }
+
+    const post = await Blog.findByIdAndDelete(id);
+
+    if (!post) {
+      console.log('Post not found'); // Debugging
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    console.log('Deleted Post:', post); // Debugging
+
     res.status(200).json({ message: 'Post deleted successfully' });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error('Error deleting post:', error.message); // Debugging
+    res.status(500).json({ message: error.message });
   }
 };
-
 // Add a comment to a blog post
+
 export const addComment = async (req, res) => {
   try {
-    const { postId, text } = req.body;
-    const newComment = new Comment({
+    const { postId, commentText } = req.body;
+
+    console.log('Adding comment to post ID:', postId); // Debugging
+
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({ message: 'Invalid blog post ID' });
+    }
+
+    if (!commentText || commentText.trim() === '') {
+      return res.status(400).json({ message: 'Comment text is required' });
+    }
+
+    const blog = await Blog.findById(postId);
+
+    if (!blog) {
+      return res.status(404).json({ message: 'Blog post not found' });
+    }
+
+    const comment = new Comment({
       postId,
-      text,
-      userId: req.user.id,
-      createdAt: new Date(),
+      commentText,
+      author: req.user.id, // Use the authenticated user's ID
     });
 
-    await newComment.save();
-    const post = await Blog.findById(postId);
-    post.comments.push(newComment);
-    await post.save();
+    await comment.save();
 
-    res.status(201).json({ message: 'Comment added successfully', comment: newComment });
+    console.log('Added Comment:', comment); // Debugging
+
+    res.status(201).json({ message: 'Comment added successfully', comment });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error('Error adding comment:', error.message); // Debugging
+    res.status(500).json({ message: error.message });
   }
 };
-
 // Search and filter blog posts
 export const searchPosts = async (req, res) => {
   try {
     const { title, tags } = req.query;
+
+    console.log('Search Query:', req.query); // Debugging
+
     const query = {};
 
-    if (title) query.title = { $regex: title, $options: 'i' }; 
-    if (tags) query.tags = { $in: tags.split(',') }; 
+    if (title) {
+      query.title = { $regex: title, $options: 'i' }; // Case-insensitive search
+    }
 
-    const posts = await Blog.find(query).sort({ publishDate: -1 });
-    res.status(200).json(posts);
+    if (tags) {
+      query.tags = { $in: tags.split(',') }; // Match any of the provided tags
+    }
+
+    console.log('Generated Query:', query); // Debugging
+
+    const blogs = await Blog.find(query);
+
+    console.log('Search Results:', blogs.length); // Debugging
+
+    res.status(200).json(blogs);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error('Error searching posts:', error.message); // Debugging
+    res.status(500).json({ message: error.message });
   }
 };
-

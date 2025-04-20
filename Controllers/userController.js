@@ -137,35 +137,38 @@ export const resetPassword = async (req, res) => {
 // View profile
 export const getProfile = async (req, res) => {
   try {
-    const user = req.user;  // already authenticated user
+    const user = await User.findById(req.user.id).select('firstname lastname email profile_image');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
     res.status(200).json({
       message: 'Profile retrieved successfully',
-      user: user, // fix: return the correct variable
-    }); 
+      user,
+    });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(500).json({ message: error.message });
   }
 };
 
 // Edit profile details
 export const updateProfile = async (req, res) => {
   try {
-    const { firstname, lastname, profile_image, email } = req.body;
-    const user = await User.findByIdAndUpdate(req.user.id, { firstname, lastname, profile_image, email }, { new: true });
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: req.body },
+      { new: true, select: 'firstname lastname email profile_image' }
+    );
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
     }
     res.status(200).json({
-      message: 'Profile updated successfully', 
-      user: user, 
+      message: 'Profile updated successfully',
+      user: updatedUser,
     });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(500).json({ message: error.message });
   }
 };
-
-
 // Delete Profile 
 export const deleteProfile = async (req, res) => {
   try {

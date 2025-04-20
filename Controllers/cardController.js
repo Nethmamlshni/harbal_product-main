@@ -11,13 +11,11 @@ export const addToCart = async (req, res) => {
     let cart;
 
     if (req.user) {
-      
       cart = await Cart.findOne({ userId: req.user.id });
       if (!cart) {
         cart = new Cart({ userId: req.user.id, items: [], totalPrice: 0 });
       }
     } else {
-      
       cart = req.session.cart || { items: [], totalPrice: 0 };
     }
 
@@ -27,35 +25,50 @@ export const addToCart = async (req, res) => {
     } else {
       cart.items.push({ productId, quantity, price: product.price });
     }
+
     cart.totalPrice = cart.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
     if (req.user) {
-      await cart.save(); 
+      await cart.save(); // Save the cart to the database
+      console.log('Cart saved:', cart); // Debugging
     } else {
-      req.session.cart = cart; 
+      req.session.cart = cart;
     }
 
     res.status(200).json(cart);
   } catch (error) {
+    console.error('Error adding to cart:', error); // Debugging
     res.status(400).json({ message: error.message });
   }
 };
-
 //  Get cart details (handles both logged-in and guest users)
 export const getCart = async (req, res) => {
   try {
     let cart;
     if (req.user) {
-      cart = await Cart.findOne({ userId: req.user.id }).populate('items.productId');
+      console.log('Fetching cart for user:', req.user._id); // Debugging
+      cart = await Cart.findOne({ userId: req.user._id })
+        .populate({
+          path: 'items.productId',
+          select: 'name price images', // Only populate necessary fields
+        })
+        .lean(); // Convert to plain JS object
+
+      if (!cart) {
+        console.log('No cart found for user, returning empty cart'); // Debugging
+        cart = { items: [], totalPrice: 0 };
+      }
     } else {
+      console.log('Fetching cart from session'); // Debugging
       cart = req.session.cart || { items: [], totalPrice: 0 };
     }
+    console.log('Cart Response:', cart); // Debugging
     res.status(200).json(cart);
   } catch (error) {
+    console.error('Error getting cart:', error);
     res.status(400).json({ message: error.message });
   }
 };
-
 // Remove item from cart
 export const removeFromCart = async (req, res) => {
   try {
@@ -93,7 +106,9 @@ export const removeFromCart = async (req, res) => {
 // Merge guest cart with user cart upon login
 export const mergeCarts = async (req, res) => {
   try {
-    if (!req.user || !req.session.cart) {
+    const guestItems = req.session.cart?.items || req.body.guestCartItems;
+
+    if (!req.user || !guestItems || guestItems.length === 0) {
       return res.status(400).json({ message: 'No guest cart to merge' });
     }
 
@@ -102,8 +117,11 @@ export const mergeCarts = async (req, res) => {
       userCart = new Cart({ userId: req.user.id, items: [], totalPrice: 0 });
     }
 
-    req.session.cart.items.forEach(guestItem => {
-      const itemIndex = userCart.items.findIndex(item => item.productId.toString() === guestItem.productId);
+    guestItems.forEach(guestItem => {
+      const itemIndex = userCart.items.findIndex(
+        item => item.productId.toString() === guestItem.productId
+      );
+
       if (itemIndex >= 0) {
         userCart.items[itemIndex].quantity += guestItem.quantity;
       } else {
@@ -111,10 +129,12 @@ export const mergeCarts = async (req, res) => {
       }
     });
 
-    userCart.totalPrice = userCart.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    userCart.totalPrice = userCart.items.reduce(
+      (acc, item) => acc + (item.price * item.quantity),
+      0
+    );
 
     await userCart.save();
-    req.session.cart = null; 
 
     res.status(200).json({ message: 'Cart merged successfully', cart: userCart });
   } catch (error) {

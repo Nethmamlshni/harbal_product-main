@@ -3,8 +3,8 @@ import { addToCart, getCart, removeFromCart, mergeCarts } from '../Controllers/c
 
 const router = express.Router();
 
-router.post('/card', addToCart);
-router.get('/card', getCart);
+router.post('/cards', addToCart);
+router.get('/cart', getCart);
 router.delete('/removecard', removeFromCart);
 router.put('/mergecard', mergeCarts);
 
