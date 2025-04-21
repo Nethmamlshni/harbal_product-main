@@ -6,17 +6,12 @@ export const addToCart = async (req, res) => {
   try {
     const { productId, quantity } = req.body;
     const product = await Product.findById(productId);
+
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
-    let cart;
-
-    if (req.user) {
-      cart = await Cart.findOne({ userId: req.user.id });
-      if (!cart) {
-        cart = new Cart({ userId: req.user.id, items: [], totalPrice: 0 });
-      }
-    } else {
-      cart = req.session.cart || { items: [], totalPrice: 0 };
+    let cart = await Cart.findOne({ userId: req.user.id });
+    if (!cart) {
+      cart = new Cart({ userId: req.user.id, items: [], totalPrice: 0 });
     }
 
     const itemIndex = cart.items.findIndex(item => item.productId.toString() === productId);
@@ -27,13 +22,7 @@ export const addToCart = async (req, res) => {
     }
 
     cart.totalPrice = cart.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-
-    if (req.user) {
-      await cart.save(); // Save the cart to the database
-      console.log('Cart saved:', cart); // Debugging
-    } else {
-      req.session.cart = cart;
-    }
+    await cart.save(); // Save the cart to the database
 
     res.status(200).json(cart);
   } catch (error) {
@@ -41,31 +30,18 @@ export const addToCart = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
+
 //  Get cart details (handles both logged-in and guest users)
 export const getCart = async (req, res) => {
   try {
-    let cart;
-    if (req.user) {
-      console.log('Fetching cart for user:', req.user._id); // Debugging
-      cart = await Cart.findOne({ userId: req.user._id })
-        .populate({
-          path: 'items.productId',
-          select: 'name price images', // Only populate necessary fields
-        })
-        .lean(); // Convert to plain JS object
-
-      if (!cart) {
-        console.log('No cart found for user, returning empty cart'); // Debugging
-        cart = { items: [], totalPrice: 0 };
-      }
-    } else {
-      console.log('Fetching cart from session'); // Debugging
-      cart = req.session.cart || { items: [], totalPrice: 0 };
+    const cart = await Cart.findOne({ userId: req.user._id }).populate('items.productId');
+    if (!cart) {
+      console.log('No cart found for user, returning empty cart'); // Debugging
+      return res.status(200).json({ items: [], totalPrice: 0 });
     }
-    console.log('Cart Response:', cart); // Debugging
     res.status(200).json(cart);
   } catch (error) {
-    console.error('Error getting cart:', error);
+    console.error('Error retrieving cart:', error); // Debugging
     res.status(400).json({ message: error.message });
   }
 };
@@ -119,18 +95,25 @@ export const mergeCarts = async (req, res) => {
 
     guestItems.forEach(guestItem => {
       const itemIndex = userCart.items.findIndex(
-        item => item.productId.toString() === guestItem.productId
+        item => item.productId.toString() === guestItem.productId.toString()
       );
 
       if (itemIndex >= 0) {
+        // Update the quantity of the existing item
         userCart.items[itemIndex].quantity += guestItem.quantity;
       } else {
-        userCart.items.push(guestItem);
+        // Add the guest item to the user cart
+        userCart.items.push({
+          productId: guestItem.productId,
+          quantity: guestItem.quantity,
+          price: guestItem.price,
+        });
       }
     });
 
+    // Recalculate the total price
     userCart.totalPrice = userCart.items.reduce(
-      (acc, item) => acc + (item.price * item.quantity),
+      (acc, item) => acc + item.price * item.quantity,
       0
     );
 
@@ -138,6 +121,7 @@ export const mergeCarts = async (req, res) => {
 
     res.status(200).json({ message: 'Cart merged successfully', cart: userCart });
   } catch (error) {
+    console.error('Error merging carts:', error.message); // Debugging
     res.status(400).json({ message: error.message });
   }
 };
