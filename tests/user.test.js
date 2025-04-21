@@ -387,7 +387,6 @@ describe('Address API', () => {
 
 // ---------------------- Cart Tests ----------------------
 
-
 describe('Cart Controller Tests', () => {
   beforeEach(async () => {
       const res = await request(app).post('/api/product/products').send({
@@ -486,7 +485,6 @@ describe('Cart Controller Tests', () => {
     const res = await request(app)
       .get('/api/card/cart')
       .set('Authorization', `Bearer ${userToken}`);
-    console.log('Merged Cart Response:', res.body); // Debugging
   
     expect(res.statusCode).toBe(200);
     expect(res.body.items.length).toBe(2); // Expect 2 unique items
@@ -494,6 +492,116 @@ describe('Cart Controller Tests', () => {
   });
 });
 // ---------------------- order Tests ----------------------
+
+describe('Order API Tests', () => {
+  beforeEach(async () => {
+    await Cart.deleteMany();
+    // Create a product
+    const res = await request(app).post('/api/product/products').send({
+      name: "Test Oil",
+      description: "Good for hair",
+      category: "Hair Care",
+      state: "oil",
+      price: 300,
+      stock: 30,
+      tags: ["hair", "herbal"],
+      ingredients: "Coconut, Aloe",
+      benefits: "Hair growth",
+      usageInstructions: "Use daily",
+      shelfLife: "1 year",
+      weight: "100ml",
+      organicCertification: true,
+      origin: "Sri Lanka"
+    });
+
+    productId = res.body.product._id;
+    // Create an address
+    const addressRes = await request(app)
+      .post('/api/address/addresses')
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({
+        street: '123 Test St',
+        city: 'Test City',
+        state: 'Test State',
+        postalCode: '12345',
+        country: 'Test Country',
+        type: 'shipping',
+      });
+  
+    addressId = addressRes.body.address._id;
+  
+    // Add product to cart
+    await request(app)
+      .post('/api/card/cards')
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({
+        productId,
+        quantity: 2,
+      });
+  });
+  
+  it('should create an order', async () => {
+    const res = await request(app)
+      .post('/api/order/oder/create')
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({
+        shippingAddress: addressId,
+        paymentMethod: 'creditCard',
+      });
+    expect(res.statusCode).toBe(201);
+    expect(res.body).toHaveProperty('_id');
+    expect(res.body.items.length).toBeGreaterThan(0); // Expect at least one item();
+    expect(res.body.totalPrice).toBeGreaterThan(0);
+
+    orderId = res.body._id; // Save the order ID for future tests
+
+    //should get order details successfully
+    const orderRes = await request(app)
+      .get(`/api/order/oder/${orderId}`)
+      .set('Authorization', `Bearer ${userToken}`);
+      expect(orderRes.statusCode).toBe(200);
+      expect(orderRes.body).toHaveProperty('_id', orderId);
+      expect(orderRes.body.items.length).toBeGreaterThan(0);
+      expect(orderRes.body.shippingAddress._id.toString()).toBe(addressId.toString());
+      expect(orderRes.body.totalPrice).toBeGreaterThan(0);
+  }
+  );
+  
+it('should verify payment for an order', async () => {
+    const res = await request(app)
+      .post(`/api/order/oder/verify-payment/${orderId}`)
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({
+        paymentStatus: 'paid',
+      });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.message).toBe('Payment verified successfully');
+    expect(res.body.order.paymentStatus).toBe('paid');
+  });
+
+  it('should get all orders (admin)', async () => {
+    const res = await request(app)
+      .get('/api/order/oder/add')
+      .set('Authorization', `Bearer ${adminToken}`);
+  
+    expect(res.statusCode).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
+  });
+
+  it('should update order status (admin)', async () => {
+    const res = await request(app)
+      .put(`/api/order/oder/status/${orderId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        status: 'shipped',
+      });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.status).toBe('shipped');
+  });
+});
 
 // ---------------------- Blog Tests ----------------------
 

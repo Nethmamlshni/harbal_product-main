@@ -23,8 +23,12 @@ export const createOrder = async (req, res) => {
     }
 
     for (const item of cart.items) {
-      if (item.productId.stock < item.quantity) {
-        return res.status(400).json({ message: `Product ${item.productId.name} is out of stock` });
+      const product = await Product.findById(item.productId);
+      if (!product) {
+        return res.status(400).json({ message: `Product with ID ${item.productId} not found` });
+      }
+      if (product.stock < item.quantity) {
+        return res.status(400).json({ message: `Product ${product.name} is out of stock` });
       }
     }
 
@@ -45,7 +49,6 @@ export const createOrder = async (req, res) => {
       tax,
       shippingCost,
     });
-
     await order.save();
     for (const item of cart.items) {
       const product = await Product.findById(item.productId);
@@ -69,21 +72,30 @@ export const getOrder = async (req, res) => {
     const order = await Order.findOne({ _id: req.params.id, userId: req.user.id })
       .populate('items.productId')
       .populate('shippingAddress')
-      .populate('billingAddress');
 
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-    res.status(200).json(order);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
+      if (!order) {
+        console.log('Order not found'); // Debugging
+        return res.status(404).json({ message: 'Order not found' });
+      }
+     
+      res.status(200).json(order);
+    } catch (error) {
+      console.error('Error fetching order:', error.message); // Debugging
+      res.status(400).json({ message: error.message });
+    }
+  };
 
 // Get all orders for admin
 export const getAllOrders = async (req, res) => {
   try {
-    const orders = await Order.find().populate('userId', 'name email').populate('items.productId');
+    const orders = await Order.find()
+      .populate('shippingAddress')
+      .populate('userId', 'firstname lastname email') // Populate user details
+      .populate('items.productId'); // Correctly populate productId
+
     res.status(200).json(orders);
   } catch (error) {
+    console.error('Error fetching all orders:', error.message);
     res.status(400).json({ message: error.message });
   }
 };
