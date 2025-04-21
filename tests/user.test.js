@@ -9,6 +9,11 @@ import Order from '../Models/Oder.js';
 import Blog from '../Models/Blog.js';
 import Comment from '../Models/comment.js';
 import nodemailer from 'nodemailer';
+import Admin from '../Models/admin.js';
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import dotenv from 'dotenv';
+dotenv.config();
 
 jest.mock('nodemailer');
 
@@ -33,6 +38,7 @@ beforeAll(async () => {
     email: 'admin@example.com',
     password: 'adminpassword',
     role: 'admin',
+    confirmed: true,
   });
 
   const adminLoginRes = await request(app).post('/api/user/login').send({
@@ -763,5 +769,126 @@ describe('Blog Routes Tests', () => {
 });
   
 // ---------------------- admin Tests ----------------------
+
+
+describe('Admin API Tests', () => {
+  beforeEach(async () => {
+    await Admin.deleteMany();
+    // Create a product
+    const res = await request(app).post('/api/product/products').send({
+      name: "Test Oilifying Shampoo",
+      description: "Good for hair",
+      category: "Hair Care",
+      state: "oil",
+      price: 300,
+      stock: 30,
+      tags: ["hair", "herbal"],
+      ingredients: "Coconut, Aloe",
+      benefits: "Hair growth",
+      usageInstructions: "Use daily",
+      shelfLife: "1 year",
+      weight: "100ml",
+      organicCertification: true,
+      origin: "Sri Lanka"
+    });
+  
+    productId = res.body.product._id;
+    // Create an address
+    const addressRes = await request(app)
+      .post('/api/address/addresses')
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({
+        street: '123 Test St4',
+        city: 'Test City',
+        state: 'Test State',
+        postalCode: '12345',
+        country: 'Test Country',
+        type: 'shipping',
+      });
+  
+    addressId = addressRes.body.address._id;
+
+    const orderres = await request(app)
+      .post('/api/order/oder/create')
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({
+        shippingAddress: addressId,
+        paymentMethod: 'creditCard',
+      });
+  
+    orderId = orderres.body._id; // Save the order ID for future tests
+    });
+  
+  it('should get system analytics', async () => {
+    const res = await request(app)
+      .get('/api/admin/analytics')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toHaveProperty('totalProducts');
+    expect(res.body).toHaveProperty('totalOrders');
+    expect(res.body).toHaveProperty('totalBlogPosts');
+  });
+
+  it('should view all products', async () => {
+    const res = await request(app)
+      .get('/api/admin/products')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
+  });
+
+  it('should view all orders', async () => {
+    const res = await request(app)
+      .get('/api/admin/orders')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
+  });
+
+  it('should send an admin invitation link', async () => {
+    nodemailer.createTransport.mockReturnValue({
+      sendMail: jest.fn().mockResolvedValue(true),
+    });
+
+    const res = await request(app)
+      .post('/api/admin/invite-admin')
+      .send({ email: 'nethmamalshani794@gmail.com' });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.message).toBe('Admin invitation sent!');
+  },100000); 
+
+
+  it('should register a new admin', async () => {
+    const token = 'valid-token'; // Mock token
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // Token expires in 1 hour
+  
+    // Create a token document in the Admin model
+    await Admin.create({
+      email: 'newadmin@example.com',
+      token,
+      expiresAt,
+    });
+  
+    // Send a request to register the admin
+    const res = await request(app)
+      .post('/api/admin/register-admin')
+      .send({
+        email: 'newadmin@example.com',
+        password: 'newpassword',
+        token,
+      });
+  
+    // Assertions
+    expect(res.statusCode).toBe(201);
+    expect(res.body.message).toBe('Admin successfully registered!');
+  }, 10000); // Set a reasonable timeout of 10 seconds
+  
+});
 
 // ---------------------- email Tests ----------------------
