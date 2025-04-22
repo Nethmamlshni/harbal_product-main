@@ -12,12 +12,15 @@ import emailRouter from './Routes/emailRoutes.js';
 import BlogRouter from './Routes/blogRoutes.js';
 import adminRouter from './Routes/adminRoutes.js';
 import AddressRouter from './Routes/addressRoutes.js';
+import cors from 'cors';
 
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cors());
 
 // Session setup
 app.use(session({
