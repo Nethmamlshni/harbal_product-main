@@ -4,7 +4,7 @@ import Product from '../Models/Product.js';
 // Add product to cart (handles both logged-in and guest users)
 export const addToCart = async (req, res) => {
   try {
-    const { productId, quantity } = req.body;
+    const { productId, quantity } = req.body; 
     const product = await Product.findById(productId);
 
     if (!product) return res.status(404).json({ message: 'Product not found' });

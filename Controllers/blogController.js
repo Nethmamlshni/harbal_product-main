@@ -6,10 +6,11 @@ import mongoose from 'mongoose';
 
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,        
-  api_secret: process.env.API_SECRET,   
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET,
 });
 
+// Upload a single image to Cloudinary
 const uploadImage = async (imagePath) => {
   try {
     const result = await cloudinary.uploader.upload(imagePath);
@@ -24,14 +25,23 @@ const uploadImage = async (imagePath) => {
 // Create a new blog post
 export const createPost = async (req, res) => {
   try {
-    const { title, content , featuredImage, imageGallery, videoUrl, tags, relatedProducts } = req.body;
+    const { title, content, videoUrl, tags, relatedProducts } = req.body;
 
-    const uploadedFeaturedImage = featuredImage ? await uploadImage(featuredImage) : null;
+    // Handle featured image upload
+    const uploadedFeaturedImage = req.file
+      ? await uploadImage(req.file.path)
+      : null;
 
-    const uploadedImageGallery = imageGallery 
-      ? await Promise.all(imageGallery.map(async (img) => ({ imageUrl: await uploadImage(img) })))
+    // Handle image gallery upload
+    const uploadedImageGallery = req.files?.imageGallery
+      ? await Promise.all(
+          req.files.imageGallery.map(async (file) => ({
+            imageUrl: await uploadImage(file.path),
+          }))
+        )
       : [];
-
+      
+    // Create the new blog post
     const newPost = new Blog({
       title,
       content,
@@ -45,12 +55,11 @@ export const createPost = async (req, res) => {
 
     await newPost.save();
     res.status(201).json({ message: 'Blog post created successfully', post: newPost });
-
   } catch (error) {
+    console.error('Error creating blog post:', error.message);
     res.status(400).json({ message: error.message });
   }
 };
-
 // Get all blog posts
 export const getAllPosts = async (req, res) => {
   try {

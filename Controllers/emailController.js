@@ -14,8 +14,12 @@ const transporter = nodemailer.createTransport({
 // Send Order Confirmation Email
 export const sendOrderConfirmation = async (orderId) => {
   try {
+    console.log ('orderId', orderId);
     const order = await Order.findById(orderId).populate('userId');
+    console.log('order', order);
     const user = await User.findById(order.userId);
+    console.log('user', user);
+   
     const mailOptions = {
       from: process.env.SERVER ,
       to: user.email,
@@ -65,23 +69,6 @@ export const sendDeliveryConfirmation = async (orderId) => {
     console.log('Delivery confirmation email sent');
   } catch (error) {
     console.log('Error sending delivery confirmation email:', error);
-  }
-};
-
-// Send Password Reset Email
-export const sendPasswordResetEmail = async (userEmail, resetToken) => {
-  try {
-    const mailOptions = {
-      from: process.env.EMAIL,
-      to: userEmail,
-      subject: 'Password Reset Request',
-      text: `Click the following link to reset your password: ${process.env.WEB_SITE_URL}/reset-password/${resetToken}`,
-    };
-
-    await transporter.sendMail(mailOptions);
-    console.log('Password reset email sent');
-  } catch (error) {
-    console.log('Error sending password reset email:', error);
   }
 };
 

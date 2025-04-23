@@ -497,6 +497,7 @@ describe('Cart Controller Tests', () => {
     expect(res.body.totalPrice).toBe(1200); // Expect total price to be 1200
   });
 });
+
 // ---------------------- order Tests ----------------------
 
 describe('Order API Tests', () => {

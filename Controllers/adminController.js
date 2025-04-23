@@ -17,13 +17,13 @@ export const adminLink = async (req, res) => {
 
   await Admin.create({ email,token, expiresAt });
 
-  const link = `${process.env.WEB_SITE_URL}/register-admin?token=${token}`;
+  const link = `${process.env.WEB_SITE_URL}/api/admin/register-admin?token=${token}`;
 
   const transporter = nodemailer.createTransport({
     service: process.env.SERVER,
     auth: {
-      user: process.env.EMAIL,
-      pass: process.env.EMAIL_APP_PASSWORD,
+      user: 'nethmamalshani2002@gmail.com',
+      pass: 'sqdg zebo wbno bgdc',
     },
   });
 
