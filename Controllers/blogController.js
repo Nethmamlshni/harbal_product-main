@@ -6,15 +6,13 @@ import mongoose from 'mongoose';
 
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
-  api_secret: process.env.API_SECRET,
+  api_key: process.env.API_KEY,        
+  api_secret: process.env.API_SECRET,   
 });
 
-// Upload a single image to Cloudinary
 const uploadImage = async (imagePath) => {
   try {
     const result = await cloudinary.uploader.upload(imagePath);
-    console.log('Image uploaded successfully:', result.secure_url);
     return result.secure_url;
   } catch (error) {
     console.error('Error uploading image:', error);
@@ -24,23 +22,16 @@ const uploadImage = async (imagePath) => {
 
 // Create a new blog post
 export const createPost = async (req, res) => {
-  try {
-    const { title, content, videoUrl, tags, relatedProducts } = req.body;
 
-    // Handle featured image upload
-    const uploadedFeaturedImage = req.file
-      ? await uploadImage(req.file.path)
-      : null;
-
-    // Handle image gallery upload
-    const uploadedImageGallery = req.files?.imageGallery
-      ? await Promise.all(
-          req.files.imageGallery.map(async (file) => ({
-            imageUrl: await uploadImage(file.path),
-          }))
-        )
-      : [];
-      
+    
+    try {
+      const { title, content, featuredImage, imageGallery, videoUrl, tags, relatedProducts, author } = req.body;
+  
+      const uploadedFeaturedImage = featuredImage ? await uploadImage(featuredImage) : null;
+  
+      const uploadedImageGallery = imageGallery 
+        ? await Promise.all(imageGallery.map(async (img) => ({ imageUrl: await uploadImage(img) })))
+        : [];
     // Create the new blog post
     const newPost = new Blog({
       title,
