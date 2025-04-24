@@ -13,7 +13,6 @@ cloudinary.config({
 const uploadImage = async (imagePath) => {
   try {
     const result = await cloudinary.uploader.upload(imagePath);
-    console.log('Image uploaded successfully:', result.secure_url);
     return result.secure_url;
   } catch (error) {
     console.error('Error uploading image:', error);
@@ -23,15 +22,17 @@ const uploadImage = async (imagePath) => {
 
 // Create a new blog post
 export const createPost = async (req, res) => {
-  try {
-    const { title, content , featuredImage, imageGallery, videoUrl, tags, relatedProducts } = req.body;
 
-    const uploadedFeaturedImage = featuredImage ? await uploadImage(featuredImage) : null;
-
-    const uploadedImageGallery = imageGallery 
-      ? await Promise.all(imageGallery.map(async (img) => ({ imageUrl: await uploadImage(img) })))
-      : [];
-
+    
+    try {
+      const { title, content, featuredImage, imageGallery, videoUrl, tags, relatedProducts, author } = req.body;
+  
+      const uploadedFeaturedImage = featuredImage ? await uploadImage(featuredImage) : null;
+  
+      const uploadedImageGallery = imageGallery 
+        ? await Promise.all(imageGallery.map(async (img) => ({ imageUrl: await uploadImage(img) })))
+        : [];
+    // Create the new blog post
     const newPost = new Blog({
       title,
       content,
@@ -45,12 +46,11 @@ export const createPost = async (req, res) => {
 
     await newPost.save();
     res.status(201).json({ message: 'Blog post created successfully', post: newPost });
-
   } catch (error) {
+    console.error('Error creating blog post:', error.message);
     res.status(400).json({ message: error.message });
   }
 };
-
 // Get all blog posts
 export const getAllPosts = async (req, res) => {
   try {
@@ -73,8 +73,6 @@ export const getPostById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    console.log('Fetching blog post with ID:', id); // Debugging
-
     // Validate the ID
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: 'Invalid blog ID' });
@@ -86,8 +84,6 @@ export const getPostById = async (req, res) => {
     if (!blog) {
       return res.status(404).json({ message: 'Blog post not found' });
     }
-
-    console.log('Fetched Blog:', blog); // Debugging
 
     res.status(200).json(blog);
   } catch (error) {
@@ -127,8 +123,6 @@ export const deletePost = async (req, res) => {
   try {
     const { id } = req.params;
 
-    console.log('Deleting blog post with ID:', id); // Debugging
-
     if (!mongoose.Types.ObjectId.isValid(id)) {
       console.log('Invalid blog ID'); // Debugging
       return res.status(400).json({ message: 'Invalid blog ID' });
@@ -141,7 +135,6 @@ export const deletePost = async (req, res) => {
       return res.status(404).json({ message: 'Post not found' });
     }
 
-    console.log('Deleted Post:', post); // Debugging
 
     res.status(200).json({ message: 'Post deleted successfully' });
   } catch (error) {
@@ -154,8 +147,6 @@ export const deletePost = async (req, res) => {
 export const addComment = async (req, res) => {
   try {
     const { postId, commentText } = req.body;
-
-    console.log('Adding comment to post ID:', postId); // Debugging
 
     if (!mongoose.Types.ObjectId.isValid(postId)) {
       return res.status(400).json({ message: 'Invalid blog post ID' });
@@ -179,8 +170,6 @@ export const addComment = async (req, res) => {
 
     await comment.save();
 
-    console.log('Added Comment:', comment); // Debugging
-
     res.status(201).json({ message: 'Comment added successfully', comment });
   } catch (error) {
     console.error('Error adding comment:', error.message); // Debugging
@@ -192,8 +181,6 @@ export const searchPosts = async (req, res) => {
   try {
     const { title, tags } = req.query;
 
-    console.log('Search Query:', req.query); // Debugging
-
     const query = {};
 
     if (title) {
@@ -204,11 +191,7 @@ export const searchPosts = async (req, res) => {
       query.tags = { $in: tags.split(',') }; // Match any of the provided tags
     }
 
-    console.log('Generated Query:', query); // Debugging
-
     const blogs = await Blog.find(query);
-
-    console.log('Search Results:', blogs.length); // Debugging
 
     res.status(200).json(blogs);
   } catch (error) {

@@ -7,10 +7,11 @@ const orderItemSchema = new mongoose.Schema({
 });
 
 const orderSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
   items: [orderItemSchema],
   shippingAddress: { type: mongoose.Schema.Types.ObjectId, ref: 'Address', required: true },
   availability: { type: String, enum: ['standard', 'express'], default: 'standard' },
+  billingAddress: { type: mongoose.Schema.Types.ObjectId, ref: 'Address' },
   paymentMethod: { type: String, enum: ['creditCard', 'debitCard', 'cashOnDelivery'], default: 'creditCard' },
   status: { type: String, enum: ['pending', 'processing', 'shipped', 'delivered', 'canceled'], default: 'pending' },
   totalPrice: { type: Number, required: true },

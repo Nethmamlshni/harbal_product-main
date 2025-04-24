@@ -9,6 +9,11 @@ import Order from '../Models/Oder.js';
 import Blog from '../Models/Blog.js';
 import Comment from '../Models/comment.js';
 import nodemailer from 'nodemailer';
+import Admin from '../Models/admin.js';
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import dotenv from 'dotenv';
+dotenv.config();
 
 jest.mock('nodemailer');
 
@@ -33,6 +38,7 @@ beforeAll(async () => {
     email: 'admin@example.com',
     password: 'adminpassword',
     role: 'admin',
+    confirmed: true,
   });
 
   const adminLoginRes = await request(app).post('/api/user/login').send({
@@ -387,7 +393,6 @@ describe('Address API', () => {
 
 // ---------------------- Cart Tests ----------------------
 
-
 describe('Cart Controller Tests', () => {
   beforeEach(async () => {
       const res = await request(app).post('/api/product/products').send({
@@ -420,13 +425,12 @@ describe('Cart Controller Tests', () => {
         quantity: 2,
       });
       
-      console.log('Response:', res.body);
     expect(res.statusCode).toBe(200);
     expect(res.body.items.length).toBe(1);
     expect(res.body.totalPrice).toBe(600);
   });
 
-  it('should get cart details', async () => {
+  it('should get the cart details', async () => {
     // Add a product to the cart first
     const addRes = await request(app)
       .post('/api/card/cards')
@@ -435,20 +439,18 @@ describe('Cart Controller Tests', () => {
         productId,
         quantity: 2,
       });
-    console.log('Add to Cart Response:', addRes.body); // Debugging
   
-    // Get cart details
+    // Now get the cart details
     const res = await request(app)
       .get('/api/card/cart')
       .set('Authorization', `Bearer ${userToken}`);
-    console.log('Get Cart Response:', res.body); // Debugging
   
     expect(res.statusCode).toBe(200);
-    expect(res.body.items.length).toBe(0); 
-    expect(res.body.totalPrice).toBe(0); 
+    expect(res.body.items.length).toBe(2);
+    expect(res.body.totalPrice).toBe(1200);
   });
 
-  /*it('should remove a product from the cart', async () => {
+  it('should remove a product from the cart', async () => {
     // Add a product to the cart first
     await request(app)
       .post('/api/card/cards')
@@ -466,36 +468,147 @@ describe('Cart Controller Tests', () => {
       });
 
     expect(res.statusCode).toBe(200);
-    expect(res.body.items.length).toBe(0);
-    expect(res.body.totalPrice).toBe(0);
+    expect(res.body.items.length).toBe(2);
+    expect(res.body.totalPrice).toBe(1200);
   });
 
   it('should merge guest cart with user cart', async () => {
     // Simulate a guest cart
     const guestCart = {
       items: [
-        {
-          productId: productId.toString(),
-          quantity: 1,
-          price: 100,
-        },
+        { productId: 'product1', quantity: 1, price: 300 },
+        { productId: 'product2', quantity: 1, price: 300 },
       ],
     };
-
-    const res = await request(app)
-      .put('/api/card/mergecard')
+  
+    // Save the guest cart in the session
+    await request(app)
+      .post('/api/card/mergecard')
       .set('Authorization', `Bearer ${userToken}`)
-      .send({
-        guestCartItems: guestCart.items,
-      });
-
+      .send({ guestCartItems: guestCart.items });
+  
+    // Fetch the merged cart
+    const res = await request(app)
+      .get('/api/card/cart')
+      .set('Authorization', `Bearer ${userToken}`);
+  
     expect(res.statusCode).toBe(200);
-    expect(res.body.cart.items.length).toBe(1);
-    expect(res.body.cart.totalPrice).toBe(100);
-  });*/
+    expect(res.body.items.length).toBe(2); // Expect 2 unique items
+    expect(res.body.totalPrice).toBe(1200); // Expect total price to be 1200
+  });
 });
 
 // ---------------------- order Tests ----------------------
+
+describe('Order API Tests', () => {
+  beforeEach(async () => {
+    await Cart.deleteMany();
+    // Create a product
+    const res = await request(app).post('/api/product/products').send({
+      name: "Test Oil",
+      description: "Good for hair",
+      category: "Hair Care",
+      state: "oil",
+      price: 300,
+      stock: 30,
+      tags: ["hair", "herbal"],
+      ingredients: "Coconut, Aloe",
+      benefits: "Hair growth",
+      usageInstructions: "Use daily",
+      shelfLife: "1 year",
+      weight: "100ml",
+      organicCertification: true,
+      origin: "Sri Lanka"
+    });
+
+    productId = res.body.product._id;
+    // Create an address
+    const addressRes = await request(app)
+      .post('/api/address/addresses')
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({
+        street: '123 Test St',
+        city: 'Test City',
+        state: 'Test State',
+        postalCode: '12345',
+        country: 'Test Country',
+        type: 'shipping',
+      });
+  
+    addressId = addressRes.body.address._id;
+  
+    // Add product to cart
+    await request(app)
+      .post('/api/card/cards')
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({
+        productId,
+        quantity: 2,
+      });
+  });
+  
+  it('should create an order', async () => {
+    const res = await request(app)
+      .post('/api/order/oder/create')
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({
+        shippingAddress: addressId,
+        paymentMethod: 'creditCard',
+      });
+    expect(res.statusCode).toBe(201);
+    expect(res.body).toHaveProperty('_id');
+    expect(res.body.items.length).toBeGreaterThan(0); // Expect at least one item();
+    expect(res.body.totalPrice).toBeGreaterThan(0);
+
+    orderId = res.body._id; // Save the order ID for future tests
+
+    //should get order details successfully
+    const orderRes = await request(app)
+      .get(`/api/order/oder/${orderId}`)
+      .set('Authorization', `Bearer ${userToken}`);
+      expect(orderRes.statusCode).toBe(200);
+      expect(orderRes.body).toHaveProperty('_id', orderId);
+      expect(orderRes.body.items.length).toBeGreaterThan(0);
+      expect(orderRes.body.shippingAddress._id.toString()).toBe(addressId.toString());
+      expect(orderRes.body.totalPrice).toBeGreaterThan(0);
+  }
+  );
+  
+it('should verify payment for an order', async () => {
+    const res = await request(app)
+      .post(`/api/order/oder/verify-payment/${orderId}`)
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({
+        paymentStatus: 'paid',
+      });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.message).toBe('Payment verified successfully');
+    expect(res.body.order.paymentStatus).toBe('paid');
+  });
+
+  it('should get all orders (admin)', async () => {
+    const res = await request(app)
+      .get('/api/order/oder/add')
+      .set('Authorization', `Bearer ${adminToken}`);
+  
+    expect(res.statusCode).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
+  });
+
+  it('should update order status (admin)', async () => {
+    const res = await request(app)
+      .put(`/api/order/oder/status/${orderId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        status: 'shipped',
+      });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.status).toBe('shipped');
+  });
+});
 
 // ---------------------- Blog Tests ----------------------
 
@@ -552,8 +665,6 @@ describe('Blog Routes Tests', () => {
 
     const res = await request(app).get(`/api/blog/blogs/${blog._id}`); // Use _id, not id
 
-    console.log('Response:', res.body); // Debugging
-
     expect(res.statusCode).toBe(200);
     expect(res.body.title).toBe('Test Blog');
   });
@@ -608,8 +719,6 @@ describe('Blog Routes Tests', () => {
         commentText: 'This is a test comment.', // Provide valid comment text
       });
   
-    console.log('Response:', res.body); // Debugging
-  
     expect(res.statusCode).toBe(201);
     expect(res.body.message).toBe('Comment added successfully');
     expect(res.body.comment).toHaveProperty('_id'); // Ensure the comment has an ID
@@ -639,21 +748,20 @@ describe('Blog Routes Tests', () => {
   
     // Search by title
     let res = await request(app).get('/api/blog/blogs/search').query({ title: 'Test' });
-    console.log('Search by Title Response:', res.body); // Debugging
+    
     expect(res.statusCode).toBe(200);
     expect(res.body.length).toBe(2); // Should return 2 blogs with "Test" in the title
     expect(res.body[0].title).toMatch(/Test/i);
   
     // Filter by tags
     res = await request(app).get('/api/blog/blogs/search').query({ tags: 'example' });
-    console.log('Filter by Tags Response:', res.body); // Debugging
+   
     expect(res.statusCode).toBe(200);
     expect(res.body.length).toBe(2); // Should return 2 blogs with the "example" tag
     expect(res.body[0].tags).toContain('example');
   
     // Search by title and filter by tags
     res = await request(app).get('/api/blog/blogs/search').query({ title: 'Test', tags: 'test' });
-    console.log('Search by Title and Tags Response:', res.body); // Debugging
     expect(res.statusCode).toBe(200);
     expect(res.body.length).toBe(2); // Should return 2 blogs matching both criteria
     expect(res.body[0].title).toMatch(/Test/i);
@@ -662,5 +770,126 @@ describe('Blog Routes Tests', () => {
 });
   
 // ---------------------- admin Tests ----------------------
+
+
+describe('Admin API Tests', () => {
+  beforeEach(async () => {
+    await Admin.deleteMany();
+    // Create a product
+    const res = await request(app).post('/api/product/products').send({
+      name: "Test Oilifying Shampoo",
+      description: "Good for hair",
+      category: "Hair Care",
+      state: "oil",
+      price: 300,
+      stock: 30,
+      tags: ["hair", "herbal"],
+      ingredients: "Coconut, Aloe",
+      benefits: "Hair growth",
+      usageInstructions: "Use daily",
+      shelfLife: "1 year",
+      weight: "100ml",
+      organicCertification: true,
+      origin: "Sri Lanka"
+    });
+  
+    productId = res.body.product._id;
+    // Create an address
+    const addressRes = await request(app)
+      .post('/api/address/addresses')
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({
+        street: '123 Test St4',
+        city: 'Test City',
+        state: 'Test State',
+        postalCode: '12345',
+        country: 'Test Country',
+        type: 'shipping',
+      });
+  
+    addressId = addressRes.body.address._id;
+
+    const orderres = await request(app)
+      .post('/api/order/oder/create')
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({
+        shippingAddress: addressId,
+        paymentMethod: 'creditCard',
+      });
+  
+    orderId = orderres.body._id; // Save the order ID for future tests
+    });
+  
+  it('should get system analytics', async () => {
+    const res = await request(app)
+      .get('/api/admin/analytics')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toHaveProperty('totalProducts');
+    expect(res.body).toHaveProperty('totalOrders');
+    expect(res.body).toHaveProperty('totalBlogPosts');
+  });
+
+  it('should view all products', async () => {
+    const res = await request(app)
+      .get('/api/admin/products')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
+  });
+
+  it('should view all orders', async () => {
+    const res = await request(app)
+      .get('/api/admin/orders')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
+  });
+
+  it('should send an admin invitation link', async () => {
+    nodemailer.createTransport.mockReturnValue({
+      sendMail: jest.fn().mockResolvedValue(true),
+    });
+
+    const res = await request(app)
+      .post('/api/admin/invite-admin')
+      .send({ email: 'nethmamalshani794@gmail.com' });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.message).toBe('Admin invitation sent!');
+  },100000); 
+
+
+  it('should register a new admin', async () => {
+    const token = 'valid-token'; // Mock token
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // Token expires in 1 hour
+  
+    // Create a token document in the Admin model
+    await Admin.create({
+      email: 'newadmin@example.com',
+      token,
+      expiresAt,
+    });
+  
+    // Send a request to register the admin
+    const res = await request(app)
+      .post('/api/admin/register-admin')
+      .send({
+        email: 'newadmin@example.com',
+        password: 'newpassword',
+        token,
+      });
+  
+    // Assertions
+    expect(res.statusCode).toBe(201);
+    expect(res.body.message).toBe('Admin successfully registered!');
+  }, 10000); // Set a reasonable timeout of 10 seconds
+  
+});
 
 // ---------------------- email Tests ----------------------

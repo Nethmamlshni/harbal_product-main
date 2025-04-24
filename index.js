@@ -12,6 +12,7 @@ import emailRouter from './Routes/emailRoutes.js';
 import BlogRouter from './Routes/blogRoutes.js';
 import adminRouter from './Routes/adminRoutes.js';
 import AddressRouter from './Routes/addressRoutes.js';
+import CommentRouter from './Routes/commentRoutes.js';
 import cors from 'cors';
 import reviewRouter from './Routes/reviewRoutes.js';
 
@@ -21,13 +22,17 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors());
+app.use(cors( {
+  origin: "http://localhost:5173",
+  credentials: true
+}));
 
 // Session setup
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: true,
+  cookie: { secure: false } ,
 }));
 
 // Passport middleware
@@ -82,6 +87,7 @@ app.use('/api/blog', BlogRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/address', AddressRouter);
 app.use('/api/review', reviewRouter); // Assuming you have a reviewRouter
+app.use('/api/comment', CommentRouter);
 
 // ================== ERROR HANDLING ================== //
 app.use((err, req, res, next) => {
